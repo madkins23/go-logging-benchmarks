@@ -1,0 +1,41 @@
+package bench
+
+import (
+	"io"
+	"log/slog"
+
+	galecore "github.com/galecore/xslog/xzerolog"
+)
+
+type slogZeroGalecoreBench struct {
+	slogBench
+}
+
+var _ slog.Handler = &galecore.Handler{}
+
+// slog frontend with Galecore Zerolog backend.
+func newSlogZeroGalecore(w io.Writer) *slog.Logger {
+	l := newZerolog(w)
+	return slog.New(galecore.NewHandler(&l))
+}
+
+func newSlogZeroGalecoreWithCtx(w io.Writer, attr []slog.Attr) *slog.Logger {
+	l := newZeroLogWithContext(w)
+	return slog.New(galecore.NewHandler(&l))
+}
+
+func (b *slogZeroGalecoreBench) new(w io.Writer) logBenchmark {
+	return &slogBench{
+		l: newSlogZeroGalecore(w),
+	}
+}
+
+func (b *slogZeroGalecoreBench) newWithCtx(w io.Writer) logBenchmark {
+	return &slogBench{
+		l: newSlogZeroGalecoreWithCtx(w, slogAttrs()),
+	}
+}
+
+func (b *slogZeroGalecoreBench) name() string {
+	return "SlogZeroGalecore"
+}

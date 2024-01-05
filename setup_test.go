@@ -8,9 +8,9 @@ import (
 )
 
 type user struct {
-	DOB  time.Time
-	Name string
-	Age  int
+	DOB  time.Time `json:"dob"`
+	Name string    `json:"name"`
+	Age  int       `json:"age"`
 }
 
 type users []user
@@ -85,18 +85,21 @@ func alternatingKeyValuePairs() []any {
 
 var (
 	logMsg     = "The quick brown fox jumps over the lazy dog"
-	logMsgFmt  = "User: %s, Age: %d, Height: %.2f cm, Married: %t, Birthdate: %02d-%s-%d"
+	logMsgFmt  = "User: %s, Age: %d, Height: %.2f cm, Married: %t, Birthdate: %s"
 	logMsgArgs = []any{
 		"Alice",
 		30,
 		175.5,
 		true,
-		time.Date(1992, time.January, 15, 0, 0, 0, 0, time.UTC),
+		time.Date(1992, time.January, 15, 0, 0, 0, 0, time.UTC).Format(time.DateOnly),
 	}
+	logMsgFormatted = "User: Alice, Age: 30, Height: 175.50 cm, Married: true, Birthdate: 1992-01-15"
 )
 
 var loggers = []logBenchmark{
 	&zerologBench{},
+	&slogZeroSamberBench{},
+	&slogZeroPhsymBench{},
 	&phusLogBench{},
 	&zapBench{},
 	&zapSugarBench{},

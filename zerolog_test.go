@@ -54,6 +54,10 @@ func newZerolog(w io.Writer) zerolog.Logger {
 	return zerolog.New(w).Level(zerolog.InfoLevel).With().Timestamp().Logger()
 }
 
+func newZeroLogWithContext(w io.Writer) zerolog.Logger {
+	return zerologCtx(newZerolog(w).With()).Logger()
+}
+
 type zerologBench struct {
 	l zerolog.Logger
 }
@@ -66,7 +70,7 @@ func (b *zerologBench) new(w io.Writer) logBenchmark {
 
 func (b *zerologBench) newWithCtx(w io.Writer) logBenchmark {
 	return &zerologBench{
-		l: zerologCtx(newZerolog(w).With()).Logger(),
+		l: newZeroLogWithContext(w),
 	}
 }
 
