@@ -3,8 +3,6 @@ package bench
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"regexp"
 	"time"
 )
 
@@ -13,14 +11,17 @@ type logCapture struct {
 	loggerName string
 }
 
-type logEntry struct {
-	// Basic fields:
-	Level   string `json:"level"`
-	Msg     string `json:"msg"`
-	Message string `json:"message"` // Note: Used by the Phsym handler instead of 'msg'
-	Time    string `json:"time"`
+type LogEntryBasicFields struct {
+	Level     string `json:"level"`
+	Lvl       string `json:"lvl"` // Note Used by Log15 handler instead of 'level'
+	Msg       string `json:"msg"`
+	Message   string `json:"message"` // Note: Used by the Phsym handler instead of 'msg'
+	Time      string `json:"time"`
+	Timestamp string `json:"timestamp"` // Note: Used by Apex handler instead of 'time'
+	T         string `json:"t"`         // Note: Used by Log15 handler instead of 'time'
+}
 
-	// Context fields:
+type logEntryContextFields struct {
 	Bytes     int       `json:"bytes"`
 	ElapsedMS float64   `json:"elapsed_time_ms"`
 	Error     string    `json:"error"`
@@ -32,6 +33,11 @@ type logEntry struct {
 	Users     []user    `json:"users"`
 }
 
+type logEntry struct {
+	LogEntryBasicFields
+	logEntryContextFields
+}
+
 func newLogCapture(benchmark logBenchmark) *logCapture {
 	return &logCapture{loggerName: benchmark.name()}
 }
@@ -41,14 +47,8 @@ func (lc *logCapture) empty() bool {
 }
 
 func (lc *logCapture) jsonObject() (*logEntry, error) {
-	b := lc.Bytes()
-	if found, err := regexp.Match(`^{"fields":`, b); err != nil {
-		return nil, fmt.Errorf("looking for '{fields:'")
-	} else if found {
-		b = b[7:]
-	}
 	var entry logEntry
-	return &entry, json.Unmarshal(b, &entry)
+	return &entry, json.Unmarshal(lc.Bytes(), &entry)
 }
 
 func (lc *logCapture) name() string {

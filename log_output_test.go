@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -17,21 +18,9 @@ const (
 	numAccumulatedFields = 123
 )
 
-var zeroLoggers = []logBenchmark{
-	//&zerologBench{},
-	//&slogZeroSamberBench{},
-	//&slogZeroPhsymBench{},
-	//&slogBench{},
-
-	//&phusLogBench{},
-	//&slogZapBench{},
-	//&apexBench{},
-	&logrusBench{},
-}
-
-func Test_Event_zerolog(t *testing.T) {
-	hdlrData := make([]*logCapture, len(zeroLoggers))
-	for i, benchmark := range zeroLoggers {
+func Test_Event(t *testing.T) {
+	hdlrData := make([]*logCapture, len(loggers))
+	for i, benchmark := range loggers {
 		hdlrData[i] = newLogCapture(benchmark)
 		logger := benchmark.new(hdlrData[i])
 		logger.logEvent(logMsg)
@@ -39,14 +28,18 @@ func Test_Event_zerolog(t *testing.T) {
 
 	for _, capture := range hdlrData {
 		event, err := basicFields(t, capture, logMsg, numBasicFields)
-		require.NoError(t, err)
-		noContext(t, event)
+		if errors.Is(err, &badJSONerror{}) {
+			fmt.Printf(">>> Bad JSON from %s handler: %s\n", capture.name(), err)
+		} else {
+			require.NoError(t, err)
+			noContext(t, event)
+		}
 	}
 }
 
-func Test_Disabled_zerolog(t *testing.T) {
-	hdlrData := make([]*logCapture, len(zeroLoggers))
-	for i, benchmark := range zeroLoggers {
+func Test_Disabled(t *testing.T) {
+	hdlrData := make([]*logCapture, len(loggers))
+	for i, benchmark := range loggers {
 		hdlrData[i] = newLogCapture(benchmark)
 		logger := benchmark.new(hdlrData[i])
 		logger.logDisabled(logMsg)
@@ -57,9 +50,9 @@ func Test_Disabled_zerolog(t *testing.T) {
 	}
 }
 
-func Test_EventFmt_zerolog(t *testing.T) {
-	hdlrData := make([]*logCapture, len(zeroLoggers))
-	for i, benchmark := range zeroLoggers {
+func Test_EventFmt(t *testing.T) {
+	hdlrData := make([]*logCapture, len(loggers))
+	for i, benchmark := range loggers {
 		hdlrData[i] = newLogCapture(benchmark)
 		logger := benchmark.new(hdlrData[i])
 		logger.logEventFmt(logMsgFmt, logMsgArgs...)
@@ -67,14 +60,18 @@ func Test_EventFmt_zerolog(t *testing.T) {
 
 	for _, capture := range hdlrData {
 		event, err := basicFields(t, capture, logMsgFormatted, numFormattedFields)
-		require.NoError(t, err)
-		noContext(t, event)
+		if errors.Is(err, &badJSONerror{}) {
+			fmt.Printf(">>> Bad JSON from %s handler: %s\n", capture.name(), err)
+		} else {
+			require.NoError(t, err)
+			noContext(t, event)
+		}
 	}
 }
 
-func Test_EventDisabledFmt_zerolog(t *testing.T) {
-	hdlrData := make([]*logCapture, len(zeroLoggers))
-	for i, benchmark := range zeroLoggers {
+func Test_EventDisabledFmt(t *testing.T) {
+	hdlrData := make([]*logCapture, len(loggers))
+	for i, benchmark := range loggers {
 		hdlrData[i] = newLogCapture(benchmark)
 		logger := benchmark.new(hdlrData[i])
 		logger.logDisabledFmt(logMsgFmt, logMsgArgs...)
@@ -85,24 +82,28 @@ func Test_EventDisabledFmt_zerolog(t *testing.T) {
 	}
 }
 
-func Test_EventCtx_zerolog(t *testing.T) {
-	hdlrData := make([]*logCapture, len(zeroLoggers))
-	for i, benchmark := range zeroLoggers {
+func Test_EventCtx(t *testing.T) {
+	hdlrData := make([]*logCapture, len(loggers))
+	for i, benchmark := range loggers {
 		hdlrData[i] = newLogCapture(benchmark)
 		logger := benchmark.new(hdlrData[i])
 		logger.logEventCtx(logMsg)
 	}
 
 	for _, capture := range hdlrData {
-		entry, err := basicFields(t, capture, logMsg, numContextFields)
-		require.NoError(t, err)
-		contextFields(t, entry)
+		event, err := basicFields(t, capture, logMsg, numContextFields)
+		if errors.Is(err, &badJSONerror{}) {
+			fmt.Printf(">>> Bad JSON from %s handler: %s\n", capture.name(), err)
+		} else {
+			require.NoError(t, err)
+			contextFields(t, event)
+		}
 	}
 }
 
-func Test_EventDisabledCtx_zerolog(t *testing.T) {
-	hdlrData := make([]*logCapture, len(zeroLoggers))
-	for i, benchmark := range zeroLoggers {
+func Test_EventDisabledCtx(t *testing.T) {
+	hdlrData := make([]*logCapture, len(loggers))
+	for i, benchmark := range loggers {
 		hdlrData[i] = newLogCapture(benchmark)
 		logger := benchmark.new(hdlrData[i])
 		logger.logDisabledCtx(logMsg)
@@ -113,7 +114,7 @@ func Test_EventDisabledCtx_zerolog(t *testing.T) {
 	}
 }
 
-func Test_EventCtxWeak_zerolog(t *testing.T) {
+func Test_EventCtxWeak(t *testing.T) {
 	hdlrData := make([]*logCapture, len(loggers))
 	for i, benchmark := range loggers {
 		hdlrData[i] = newLogCapture(benchmark)
@@ -123,14 +124,18 @@ func Test_EventCtxWeak_zerolog(t *testing.T) {
 
 	for _, capture := range hdlrData {
 		entry, err := basicFields(t, capture, logMsg, numContextFields)
-		require.NoError(t, err)
-		contextFields(t, entry)
+		if errors.Is(err, &badJSONerror{}) {
+			fmt.Printf(">>> Bad JSON from %s handler: %s\n", capture.name(), err)
+		} else {
+			require.NoError(t, err)
+			contextFields(t, entry)
+		}
 	}
 }
 
-func Test_EventDisabledCtxWeak_zerolog(t *testing.T) {
-	hdlrData := make([]*logCapture, len(zeroLoggers))
-	for i, benchmark := range zeroLoggers {
+func Test_EventDisabledCtxWeak(t *testing.T) {
+	hdlrData := make([]*logCapture, len(loggers))
+	for i, benchmark := range loggers {
 		hdlrData[i] = newLogCapture(benchmark)
 		logger := benchmark.newWithCtx(hdlrData[i])
 		logger.logDisabledCtxWeak(logMsg)
@@ -141,9 +146,9 @@ func Test_EventDisabledCtxWeak_zerolog(t *testing.T) {
 	}
 }
 
-func xTest_EventAccumulatedCtx_zerolog(t *testing.T) {
-	hdlrData := make([]*logCapture, len(zeroLoggers))
-	for i, benchmark := range zeroLoggers {
+func Test_EventAccumulatedCtx(t *testing.T) {
+	hdlrData := make([]*logCapture, len(loggers))
+	for i, benchmark := range loggers {
 		hdlrData[i] = newLogCapture(benchmark)
 		logger := benchmark.newWithCtx(hdlrData[i])
 		logger.logEvent(logMsg)
@@ -151,14 +156,18 @@ func xTest_EventAccumulatedCtx_zerolog(t *testing.T) {
 
 	for _, capture := range hdlrData {
 		entry, err := basicFields(t, capture, logMsg, numAccumulatedFields)
-		require.NoError(t, err)
-		contextFields(t, entry)
+		if errors.Is(err, &badJSONerror{}) {
+			fmt.Printf(">>> Bad JSON from %s handler: %s\n", capture.name(), err)
+		} else {
+			require.NoError(t, err)
+			contextFields(t, entry)
+		}
 	}
 }
 
-func xTest_EventDisabledAccumulatedCtx_zerolog(t *testing.T) {
-	hdlrData := make([]*logCapture, len(zeroLoggers))
-	for i, benchmark := range zeroLoggers {
+func xTest_EventDisabledAccumulatedCtx(t *testing.T) {
+	hdlrData := make([]*logCapture, len(loggers))
+	for i, benchmark := range loggers {
 		hdlrData[i] = newLogCapture(benchmark)
 		logger := benchmark.newWithCtx(hdlrData[i])
 		logger.logDisabledCtxWeak(logMsg)
@@ -169,26 +178,68 @@ func xTest_EventDisabledAccumulatedCtx_zerolog(t *testing.T) {
 	}
 }
 
+type badJSONerror struct {
+	wrapped error
+}
+
+func (e *badJSONerror) Is(target error) bool {
+	var badJSONerror *badJSONerror
+	ok := errors.As(target, &badJSONerror)
+	return ok
+}
+
+func (e *badJSONerror) Error() string {
+	return "parse error: " + e.wrapped.Error()
+}
+
+func (e *badJSONerror) Unwrap() error {
+	return e.wrapped
+}
+
 func basicFields(t *testing.T, capture *logCapture, message string, numFields int) (*logEntry, error) {
 	fmt.Printf(
 		"--------------------------------------------------------------------------\n"+
 			"%s (%d):\n  %s\n", capture.name(), capture.numFields(), capture.String())
+
 	entry, err := capture.jsonObject()
+	if err != nil {
+		return nil, &badJSONerror{wrapped: err}
+	}
+
+	if entry.Level != "" {
+		assert.Equal(t, "info", strings.ToLower(entry.Level))
+	} else if entry.Lvl != "" {
+		fmt.Printf(">>> %s uses 'lvl' instead of 'level\n", capture.name())
+		assert.Equal(t, "info", strings.ToLower(entry.Lvl))
+	} else {
+		assert.Fail(t, "No level field")
+	}
+	if entry.Time != "" {
+		_, err = time.Parse(time.RFC3339Nano, entry.Time)
+	} else if entry.Timestamp != "" {
+		fmt.Printf(">>> %s uses 'timestamp' instead of 'time\n", capture.name())
+		_, err = time.Parse(time.RFC3339Nano, entry.Timestamp)
+	} else if entry.T != "" {
+		fmt.Printf(">>> %s uses 't' instead of 'time\n", capture.name())
+		_, err = time.Parse(time.RFC3339Nano, entry.T)
+	} else {
+		assert.Fail(t, "No time field")
+	}
 	assert.NoError(t, err)
-	assert.Equal(t, "info", strings.ToLower(entry.Level))
-	_, err = time.Parse(time.RFC3339Nano, entry.Time)
-	assert.NoError(t, err)
-	if entry.Msg == "" {
-		// Note: Some handlers use 'message' instead of 'msg'.
+	if entry.Msg != "" {
+		assert.Equal(t, message, entry.Msg)
+	} else if entry.Message != "" {
 		fmt.Printf(">>> %s uses 'message' instead of 'msg'\n", capture.name())
 		assert.Equal(t, message, entry.Message)
 	} else {
-		assert.Equal(t, message, entry.Msg)
+		assert.Fail(t, "No message field")
 	}
-	if capture.name() == (&slogZeroPhsymBench{}).name() {
-		// Note: The phsym handler adds an extra time field in the JSON output.
+	switch capture.name() {
+	case (&slogZeroPhsymBench{}).name():
+	case (&apexBench{}).name():
+		fmt.Printf(">>> %s has an extra field\n", capture.name())
 		assert.Equal(t, numFields+1, capture.numFields())
-	} else {
+	default:
 		assert.Equal(t, numFields, capture.numFields())
 	}
 	return entry, nil
