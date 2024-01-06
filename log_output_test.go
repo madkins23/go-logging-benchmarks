@@ -12,10 +12,8 @@ import (
 )
 
 const (
-	numBasicFields       = 3
-	numFormattedFields   = 7 // The formatted string includes four extra commas.
-	numContextFields     = 63
-	numAccumulatedFields = 123
+	countEvents  = 3
+	countContext = 12
 )
 
 func Test_Event(t *testing.T) {
@@ -27,9 +25,9 @@ func Test_Event(t *testing.T) {
 	}
 
 	for _, capture := range hdlrData {
-		event, err := basicFields(t, capture, logMsg, numBasicFields)
-		if errors.Is(err, &badJSONerror{}) {
-			fmt.Printf(">>> Bad JSON from %s handler: %s\n", capture.name(), err)
+		event, err := basicFields(t, capture, logMsg, countEvents)
+		if errors.Is(err, &parseError{}) {
+			fmt.Printf("*** Bad entry from %s handler: %s\n", capture.name(), err)
 		} else {
 			require.NoError(t, err)
 			noContext(t, event)
@@ -59,9 +57,9 @@ func Test_EventFmt(t *testing.T) {
 	}
 
 	for _, capture := range hdlrData {
-		event, err := basicFields(t, capture, logMsgFormatted, numFormattedFields)
-		if errors.Is(err, &badJSONerror{}) {
-			fmt.Printf(">>> Bad JSON from %s handler: %s\n", capture.name(), err)
+		event, err := basicFields(t, capture, logMsgFormatted, countEvents)
+		if errors.Is(err, &parseError{}) {
+			fmt.Printf(">>>Bad entry from %s handler: %s\n", capture.name(), err)
 		} else {
 			require.NoError(t, err)
 			noContext(t, event)
@@ -91,9 +89,9 @@ func Test_EventCtx(t *testing.T) {
 	}
 
 	for _, capture := range hdlrData {
-		event, err := basicFields(t, capture, logMsg, numContextFields)
-		if errors.Is(err, &badJSONerror{}) {
-			fmt.Printf(">>> Bad JSON from %s handler: %s\n", capture.name(), err)
+		event, err := basicFields(t, capture, logMsg, countContext)
+		if errors.Is(err, &parseError{}) {
+			fmt.Printf(">>>Bad entry from %s handler: %s\n", capture.name(), err)
 		} else {
 			require.NoError(t, err)
 			contextFields(t, event)
@@ -123,9 +121,9 @@ func Test_EventCtxWeak(t *testing.T) {
 	}
 
 	for _, capture := range hdlrData {
-		entry, err := basicFields(t, capture, logMsg, numContextFields)
-		if errors.Is(err, &badJSONerror{}) {
-			fmt.Printf(">>> Bad JSON from %s handler: %s\n", capture.name(), err)
+		entry, err := basicFields(t, capture, logMsg, countContext)
+		if errors.Is(err, &parseError{}) {
+			fmt.Printf(">>>Bad entry from %s handler: %s\n", capture.name(), err)
 		} else {
 			require.NoError(t, err)
 			contextFields(t, entry)
@@ -155,9 +153,9 @@ func Test_EventAccumulatedCtx(t *testing.T) {
 	}
 
 	for _, capture := range hdlrData {
-		entry, err := basicFields(t, capture, logMsg, numAccumulatedFields)
-		if errors.Is(err, &badJSONerror{}) {
-			fmt.Printf(">>> Bad JSON from %s handler: %s\n", capture.name(), err)
+		entry, err := basicFields(t, capture, logMsg, countContext)
+		if errors.Is(err, &parseError{}) {
+			fmt.Printf(">>>Bad entry from %s handler: %s\n", capture.name(), err)
 		} else {
 			require.NoError(t, err)
 			contextFields(t, entry)
@@ -165,7 +163,7 @@ func Test_EventAccumulatedCtx(t *testing.T) {
 	}
 }
 
-func xTest_EventDisabledAccumulatedCtx(t *testing.T) {
+func Test_EventDisabledAccumulatedCtx(t *testing.T) {
 	hdlrData := make([]*logCapture, len(loggers))
 	for i, benchmark := range loggers {
 		hdlrData[i] = newLogCapture(benchmark)
@@ -178,32 +176,43 @@ func xTest_EventDisabledAccumulatedCtx(t *testing.T) {
 	}
 }
 
-type badJSONerror struct {
-	wrapped error
+type parseError struct {
+	wrapped   error
+	parseType string
 }
 
-func (e *badJSONerror) Is(target error) bool {
-	var badJSONerror *badJSONerror
-	ok := errors.As(target, &badJSONerror)
+func (e *parseError) Is(target error) bool {
+	var pe *parseError
+	ok := errors.As(target, &pe)
 	return ok
 }
 
-func (e *badJSONerror) Error() string {
-	return "parse error: " + e.wrapped.Error()
+func (e *parseError) Error() string {
+	return e.parseType + " parse error: " + e.wrapped.Error()
 }
 
-func (e *badJSONerror) Unwrap() error {
+func (e *parseError) Unwrap() error {
 	return e.wrapped
 }
 
-func basicFields(t *testing.T, capture *logCapture, message string, numFields int) (*logEntry, error) {
+func basicFields(t *testing.T, capture *logCapture, message string, fieldCount int) (*logEntry, error) {
+	fieldsFound, duplicates, duplicatesErr := capture.duplicateFields()
 	fmt.Printf(
 		"--------------------------------------------------------------------------\n"+
-			"%s (%d):\n  %s\n", capture.name(), capture.numFields(), capture.String())
+			"%s (%d) (%v):\n  %s\n", capture.name(), fieldsFound, duplicates, capture.String())
 
-	entry, err := capture.jsonObject()
+	var entry *logEntry
+	var err error
+
+	parseType := "JSON"
+	if capture.name() == (&logfBench{}).name() {
+		entry, err = capture.logfmtObject()
+		parseType = "Logfmt"
+	} else {
+		entry, err = capture.jsonObject()
+	}
 	if err != nil {
-		return nil, &badJSONerror{wrapped: err}
+		return nil, &parseError{parseType: parseType, wrapped: err}
 	}
 
 	if entry.Level != "" {
@@ -234,13 +243,11 @@ func basicFields(t *testing.T, capture *logCapture, message string, numFields in
 	} else {
 		assert.Fail(t, "No message field")
 	}
-	switch capture.name() {
-	case (&slogZeroPhsymBench{}).name():
-	case (&apexBench{}).name():
-		fmt.Printf(">>> %s has an extra field\n", capture.name())
-		assert.Equal(t, numFields+1, capture.numFields())
-	default:
-		assert.Equal(t, numFields, capture.numFields())
+	assert.Equal(t, fieldCount, fieldsFound)
+	if duplicatesErr != nil {
+		fmt.Printf("*** Error acquiring duplicates: %s\n", duplicatesErr.Error())
+	} else if !assert.Len(t, duplicates, 0) {
+		fmt.Printf(">>> %s has duplicate fields: %v\n", capture.name(), duplicates)
 	}
 	return entry, nil
 }
